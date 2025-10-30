@@ -222,19 +222,19 @@
         // ===== プラットフォームデータ =====
         const platforms = [
             { x: 0, y: GROUND_Y + 50, width: canvas.width, height: 30 }, // 地面
-            { x: 100, y: canvas.height * 0.75, width: 200, height: 25 },
-            { x: canvas.width - 300, y: canvas.height * 0.65, width: 200, height: 25 },
-            { x: 150, y: canvas.height * 0.55, width: 180, height: 25 },
-            { x: canvas.width - 280, y: canvas.height * 0.45, width: 200, height: 25 },
-            { x: 200, y: canvas.height * 0.35, width: 200, height: 25 },
-            { x: canvas.width - 320, y: canvas.height * 0.25, width: 220, height: 25 },
-            { x: 250, y: canvas.height * 0.15, width: 200, height: 25 } // ゴール手前
+            { x: 200, y: canvas.height * 0.75, width: 250, height: 25 },
+            { x: 500, y: canvas.height * 0.65, width: 250, height: 25 },
+            { x: 800, y: canvas.height * 0.75, width: 250, height: 25 },
+            { x: 1100, y: canvas.height * 0.55, width: 250, height: 25 },
+            { x: 1400, y: canvas.height * 0.65, width: 250, height: 25 },
+            { x: 1700, y: canvas.height * 0.45, width: 250, height: 25 },
+            { x: 2000, y: canvas.height * 0.25, width: 280, height: 25 } // ゴール手前
         ];
 
         // ===== ゴール =====
         const goal = {
-            x: canvas.width / 2 - 50,
-            y: canvas.height * 0.05,
+            x: 2050,
+            y: canvas.height * 0.15,
             width: 100,
             height: 40
         };
@@ -246,7 +246,7 @@
                 this.y = y;
                 this.width = 35;
                 this.height = 40;
-                this.velocityX = 3; // 普通の速度
+                this.velocityX = 1.5; // 遅い速度
                 this.minX = Math.max(0, x - 150);
                 this.maxX = Math.min(canvas.width - this.width, x + 150);
                 this.image = enemyImage;
@@ -296,18 +296,19 @@
         const enemies = [];
         function initializeEnemies() {
             enemies.length = 0;
-            // 各プラットフォーム（地面以外）に敵を配置
+            // 各プラットフォーム（地面以外）に敵を1体ずつ配置
             for (let i = 1; i < platforms.length; i++) {
                 const platform = platforms[i];
                 const enemyX = platform.x + platform.width / 2 - 17.5;
-                const enemyY = platform.y - 40;
+                const enemyY = platform.y - 45;
                 enemies.push(new Enemy(enemyX, enemyY));
             }
-            // 残りの敵をランダムに配置
+            // 敵が10体になるまでランダムに追加
             while (enemies.length < 10) {
-                const randPlatform = platforms[Math.floor(Math.random() * (platforms.length - 1)) + 1];
-                const enemyX = randPlatform.x + Math.random() * (randPlatform.width - 35);
-                const enemyY = randPlatform.y - 40 - Math.random() * 50;
+                const randIndex = Math.floor(Math.random() * (platforms.length - 1)) + 1;
+                const platform = platforms[randIndex];
+                const enemyX = platform.x + Math.random() * (platform.width - 35);
+                const enemyY = platform.y - 45;
                 enemies.push(new Enemy(enemyX, enemyY));
             }
         }
