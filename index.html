@@ -694,7 +694,7 @@
         function clearGame() {
             gameState = 'clear';
             const totalEnemies = getTotalEnemyCount();
-            const defeatedCount = totalEnemies - enemies.filter(e => e.alive || e.isCrushed).length;
+            const defeatedCount = enemies.filter(e => !e.alive && e.isCrushed).length;
             showModal('CLEAR!', `ゴールに到達！\n敵を倒した数：${defeatedCount} / ${totalEnemies}\nスコア：${score}`);
         }
 
