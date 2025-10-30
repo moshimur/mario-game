@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Super Mario Web Game</title>
+    <title>Super Mario Web Game - Phase 2</title>
     <style>
         * {
             margin: 0;
@@ -59,12 +59,82 @@
             color: #667eea;
         }
 
+        .status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 20px;
+            border-radius: 8px;
+            z-index: 10;
+            text-align: right;
+        }
+
+        .modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+            z-index: 100;
+            display: none;
+            min-width: 300px;
+        }
+
+        .modal.show {
+            display: block;
+        }
+
+        .modal h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .modal p {
+            font-size: 18px;
+            margin: 10px 0;
+        }
+
+        .modal button {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .modal button:hover {
+            background: #764ba2;
+        }
+
         @media (max-width: 768px) {
             .controls {
                 font-size: 12px;
                 padding: 10px;
                 bottom: 10px;
                 left: 10px;
+            }
+
+            .status {
+                font-size: 14px;
+                top: 10px;
+                right: 10px;
+                padding: 10px 15px;
+            }
+
+            .modal h1 {
+                font-size: 36px;
             }
         }
     </style>
@@ -76,6 +146,16 @@
             <p><strong>操作方法:</strong></p>
             <p>← → キー / A D キー : 左右移動</p>
             <p>SPACE キー : ジャンプ</p>
+            <p><strong>敵を踏んで倒す！</strong></p>
+        </div>
+        <div class="status">
+            <p>敵: <span id="enemyCount">10</span></p>
+            <p>スコア: <span id="score">0</span></p>
+        </div>
+        <div id="gameModal" class="modal">
+            <h1 id="modalTitle">GAME OVER</h1>
+            <p id="modalMessage"></p>
+            <button onclick="location.reload()">もう一度プレイ</button>
         </div>
     </div>
 
@@ -85,7 +165,7 @@
         const JUMP_STRENGTH = -12;
         const MOVE_SPEED = 6;
         const MAX_FALL_SPEED = 12;
-        const GROUND_Y_RATIO = 0.65; // 画面高さの65%
+        const GROUND_Y_RATIO = 0.85;
 
         // ===== Canvas設定 =====
         const canvas = document.getElementById('gameCanvas');
@@ -99,8 +179,11 @@
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
 
-        // 地面の高さを動的に計算
         let GROUND_Y = canvas.height * GROUND_Y_RATIO;
+
+        // ===== ゲーム状態 =====
+        let gameState = 'playing'; // 'playing', 'gameover', 'clear'
+        let score = 0;
 
         // ===== プレイヤーオブジェクト =====
         const player = {
@@ -113,7 +196,7 @@
             isJumping: false,
             image: null,
             imageLoaded: false,
-            direction: 1 // 1 = right, -1 = left
+            direction: 1
         };
 
         // ===== 画像読み込み =====
@@ -122,12 +205,113 @@
         playerImage.onload = () => {
             player.image = playerImage;
             player.imageLoaded = true;
-            console.log('✓ キャラクター画像が読み込まれました');
         };
         playerImage.onerror = () => {
-            console.warn('⚠ 画像読み込み失敗。ファイルが同じディレクトリにあることを確認してください。フォールバック描画を使用します。');
             player.imageLoaded = false;
         };
+
+        const enemyImage = new Image();
+        enemyImage.src = './アイコンみーこ256256.png';
+        enemyImage.onload = () => {
+            console.log('敵画像読み込み完了');
+        };
+        enemyImage.onerror = () => {
+            console.log('敵画像読み込み失敗');
+        };
+
+        // ===== プラットフォームデータ =====
+        const platforms = [
+            { x: 0, y: GROUND_Y + 50, width: canvas.width, height: 30 }, // 地面
+            { x: 100, y: canvas.height * 0.75, width: 200, height: 25 },
+            { x: canvas.width - 300, y: canvas.height * 0.65, width: 200, height: 25 },
+            { x: 150, y: canvas.height * 0.55, width: 180, height: 25 },
+            { x: canvas.width - 280, y: canvas.height * 0.45, width: 200, height: 25 },
+            { x: 200, y: canvas.height * 0.35, width: 200, height: 25 },
+            { x: canvas.width - 320, y: canvas.height * 0.25, width: 220, height: 25 },
+            { x: 250, y: canvas.height * 0.15, width: 200, height: 25 } // ゴール手前
+        ];
+
+        // ===== ゴール =====
+        const goal = {
+            x: canvas.width / 2 - 50,
+            y: canvas.height * 0.05,
+            width: 100,
+            height: 40
+        };
+
+        // ===== 敵オブジェクト =====
+        class Enemy {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 35;
+                this.height = 40;
+                this.velocityX = 3; // 普通の速度
+                this.minX = Math.max(0, x - 150);
+                this.maxX = Math.min(canvas.width - this.width, x + 150);
+                this.image = enemyImage;
+                this.alive = true;
+            }
+
+            update() {
+                this.x += this.velocityX;
+                if (this.x <= this.minX || this.x >= this.maxX) {
+                    this.velocityX *= -1;
+                }
+            }
+
+            draw(ctx) {
+                if (this.alive) {
+                    ctx.save();
+                    ctx.translate(this.x + this.width / 2, this.y);
+                    
+                    if (this.velocityX < 0) {
+                        ctx.scale(-1, 1);
+                    }
+
+                    if (enemyImage.complete && enemyImage.naturalHeight !== 0) {
+                        ctx.drawImage(
+                            enemyImage,
+                            -this.width / 2,
+                            0,
+                            this.width,
+                            this.height
+                        );
+                    } else {
+                        // フォールバック
+                        ctx.fillStyle = '#FF6347';
+                        ctx.fillRect(-this.width / 2, 0, this.width, this.height);
+                    }
+
+                    ctx.restore();
+                }
+            }
+
+            isAlive() {
+                return this.alive;
+            }
+        }
+
+        // ===== 敵を配置 =====
+        const enemies = [];
+        function initializeEnemies() {
+            enemies.length = 0;
+            // 各プラットフォーム（地面以外）に敵を配置
+            for (let i = 1; i < platforms.length; i++) {
+                const platform = platforms[i];
+                const enemyX = platform.x + platform.width / 2 - 17.5;
+                const enemyY = platform.y - 40;
+                enemies.push(new Enemy(enemyX, enemyY));
+            }
+            // 残りの敵をランダムに配置
+            while (enemies.length < 10) {
+                const randPlatform = platforms[Math.floor(Math.random() * (platforms.length - 1)) + 1];
+                const enemyX = randPlatform.x + Math.random() * (randPlatform.width - 35);
+                const enemyY = randPlatform.y - 40 - Math.random() * 50;
+                enemies.push(new Enemy(enemyX, enemyY));
+            }
+        }
+        initializeEnemies();
 
         // ===== キー入力管理 =====
         const keys = {
@@ -137,12 +321,8 @@
         };
 
         window.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
-                keys.left = true;
-            }
-            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
-                keys.right = true;
-            }
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
             if (e.key === ' ') {
                 e.preventDefault();
                 keys.jump = true;
@@ -150,26 +330,14 @@
         });
 
         window.addEventListener('keyup', (e) => {
-            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
-                keys.left = false;
-            }
-            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
-                keys.right = false;
-            }
-            if (e.key === ' ') {
-                keys.jump = false;
-            }
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+            if (e.key === ' ') keys.jump = false;
         });
 
-        // ===== タッチ操作（モバイル対応） =====
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-        }, { passive: false });
-
+        // ===== タッチ操作 =====
         canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
-            
-            // 画面左半分 / 右半分で移動判定
             if (e.touches[0].clientX < canvas.width / 2) {
                 keys.left = true;
                 keys.right = false;
@@ -177,20 +345,14 @@
                 keys.left = false;
                 keys.right = true;
             }
-            
-            // 画面上部タップでジャンプ
-            if (e.touches[0].clientY < canvas.height * 0.3) {
-                keys.jump = true;
-            }
         }, { passive: false });
 
         canvas.addEventListener('touchend', () => {
             keys.left = false;
             keys.right = false;
-            keys.jump = false;
         });
 
-        // ===== Web Audio API - ジャンプ音 =====
+        // ===== Web Audio API =====
         let audioContext = null;
 
         function initAudioContext() {
@@ -201,31 +363,85 @@
 
         function playJumpSound() {
             initAudioContext();
-            
             try {
                 const now = audioContext.currentTime;
                 const osc = audioContext.createOscillator();
                 const gain = audioContext.createGain();
-
                 osc.connect(gain);
                 gain.connect(audioContext.destination);
-
-                // ジャンプ音：低周波から高周波へ
                 osc.frequency.setValueAtTime(400, now);
                 osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
-                
                 gain.gain.setValueAtTime(0.3, now);
                 gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-
                 osc.start(now);
                 osc.stop(now + 0.1);
             } catch (e) {
-                console.log('音声再生エラー:', e);
+                console.log('音声再生エラー');
             }
+        }
+
+        function playEnemyDefeatedSound() {
+            initAudioContext();
+            try {
+                const now = audioContext.currentTime;
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                osc.frequency.setValueAtTime(1200, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.15);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } catch (e) {
+                console.log('音声再生エラー');
+            }
+        }
+
+        function playGameOverSound() {
+            initAudioContext();
+            try {
+                const now = audioContext.currentTime;
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.3);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } catch (e) {
+                console.log('音声再生エラー');
+            }
+        }
+
+        // ===== 当たり判定 =====
+        function checkCollision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+
+        function checkPlatformCollision() {
+            for (let platform of platforms) {
+                if (checkCollision(player, platform) && player.velocityY >= 0) {
+                    player.y = platform.y - player.height;
+                    player.velocityY = 0;
+                    player.isJumping = false;
+                    return true;
+                }
+            }
+            return false;
         }
 
         // ===== ゲームロジック =====
         function updatePlayer() {
+            if (gameState !== 'playing') return;
+
             // 水平移動
             if (keys.left) {
                 player.velocityX = -MOVE_SPEED;
@@ -237,15 +453,15 @@
                 player.velocityX = 0;
             }
 
-            // ジャンプ（地面にいるときだけ）
-            if (keys.jump && !player.isJumping && player.y >= GROUND_Y - 5) {
+            // ジャンプ
+            if (keys.jump && !player.isJumping) {
                 player.velocityY = JUMP_STRENGTH;
                 player.isJumping = true;
                 playJumpSound();
                 keys.jump = false;
             }
 
-            // 重力適用
+            // 重力
             player.velocityY += GRAVITY;
             if (player.velocityY > MAX_FALL_SPEED) {
                 player.velocityY = MAX_FALL_SPEED;
@@ -255,69 +471,132 @@
             player.x += player.velocityX;
             player.y += player.velocityY;
 
-            // 地面判定
-            if (player.y >= GROUND_Y) {
-                player.y = GROUND_Y;
-                player.velocityY = 0;
-                player.isJumping = false;
-            }
+            // プラットフォーム衝突判定
+            checkPlatformCollision();
 
             // 画面端判定
-            if (player.x < 0) {
-                player.x = 0;
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+
+            // 画面外（下）に落ちたらゲームオーバー
+            if (player.y > canvas.height) {
+                gameOver('敵に踏まれた！');
             }
-            if (player.x + player.width > canvas.width) {
-                player.x = canvas.width - player.width;
+        }
+
+        function updateEnemies() {
+            if (gameState !== 'playing') return;
+
+            for (let enemy of enemies) {
+                if (!enemy.alive) continue;
+
+                enemy.update();
+
+                // プレイヤーと敵の当たり判定
+                if (checkCollision(player, enemy)) {
+                    // プレイヤーが敵の上から踏んだか判定
+                    if (player.velocityY > 0 && player.y + player.height - 15 < enemy.y + enemy.height / 2) {
+                        // 敵を倒した
+                        enemy.alive = false;
+                        playEnemyDefeatedSound();
+                        score += 100;
+                        updateScore();
+
+                        // すべての敵を倒したかチェック
+                        const aliveEnemies = enemies.filter(e => e.alive).length;
+                        if (aliveEnemies === 0) {
+                            clearGame();
+                        }
+                    } else {
+                        // ゲームオーバー
+                        gameOver('敵に接触した！');
+                    }
+                }
             }
+        }
+
+        function checkGoalCollision() {
+            if (gameState !== 'playing') return;
+
+            if (checkCollision(player, goal)) {
+                clearGame();
+            }
+        }
+
+        function gameOver(message) {
+            gameState = 'gameover';
+            playGameOverSound();
+            showModal('GAME OVER', message);
+        }
+
+        function clearGame() {
+            gameState = 'clear';
+            showModal('CLEAR!', 'ゴールに到達しました！\n敵を全て倒した数：' + (10 - enemies.filter(e => e.alive).length));
+        }
+
+        function showModal(title, message) {
+            const modal = document.getElementById('gameModal');
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMessage').textContent = message;
+            modal.classList.add('show');
+        }
+
+        function updateScore() {
+            document.getElementById('score').textContent = score;
+            const aliveCount = enemies.filter(e => e.alive).length;
+            document.getElementById('enemyCount').textContent = aliveCount;
         }
 
         // ===== 描画 =====
         function draw() {
-            // 背景をクリア（青空グラデーション）
+            // 背景
             const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
             gradient.addColorStop(0, '#87CEEB');
             gradient.addColorStop(1, '#E0F6FF');
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // 地面描画
-            ctx.fillStyle = '#90EE90';
-            ctx.fillRect(0, GROUND_Y + player.height, canvas.width, canvas.height);
+            // プラットフォーム描画
+            ctx.fillStyle = '#8B4513';
+            for (let platform of platforms) {
+                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+                ctx.strokeStyle = '#654321';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(platform.x, platform.y, platform.width, platform.height);
+            }
 
-            // 地面の縁取り
-            ctx.strokeStyle = '#6BBB6D';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(0, GROUND_Y + player.height);
-            ctx.lineTo(canvas.width, GROUND_Y + player.height);
-            ctx.stroke();
+            // ゴール描画
+            ctx.fillStyle = '#FFD700';
+            ctx.fillRect(goal.x, goal.y, goal.width, goal.height);
+            ctx.fillStyle = '#FFA500';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('GOAL', goal.x + goal.width / 2, goal.y + goal.height / 2 + 6);
+
+            // 敵描画
+            for (let enemy of enemies) {
+                enemy.draw(ctx);
+            }
 
             // プレイヤー描画
             drawPlayer();
 
-            // デバッグ情報（オプション）
-            ctx.fillStyle = '#000';
-            ctx.font = '14px Arial';
-            ctx.fillText(`Position: X=${Math.round(player.x)} Y=${Math.round(player.y)}`, 10, 30);
-            ctx.fillText(`Jumping: ${player.isJumping ? '中' : '地面'}`, 10, 50);
-            if (!player.imageLoaded) {
-                ctx.fillStyle = '#FF0000';
-                ctx.font = 'bold 16px Arial';
-                ctx.fillText('⚠ 画像が見つかりません', 10, 80);
+            // ゲームオーバー時のメッセージ
+            if (gameState === 'gameover' || gameState === 'clear') {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
             }
         }
 
         function drawPlayer() {
             ctx.save();
             ctx.translate(player.x + player.width / 2, player.y);
-            
-            // キャラの向きに応じて反転
+
             if (player.direction === -1) {
                 ctx.scale(-1, 1);
             }
 
             if (player.imageLoaded && player.image) {
-                // 画像で描画
                 try {
                     ctx.drawImage(
                         player.image,
@@ -327,11 +606,9 @@
                         player.height
                     );
                 } catch (e) {
-                    // 画像描画エラー時はフォールバック
                     drawPlayerFallback();
                 }
             } else {
-                // フォールバック：シンプルな図形で描画
                 drawPlayerFallback();
             }
 
@@ -339,39 +616,28 @@
         }
 
         function drawPlayerFallback() {
-            // 体（赤い矩形）
             ctx.fillStyle = '#FF0000';
             ctx.fillRect(-player.width / 2, 0, player.width, player.height - 15);
-
-            // 頭（黄色い円）
             ctx.fillStyle = '#FFD700';
             ctx.beginPath();
             ctx.arc(0, -10, player.width / 3, 0, Math.PI * 2);
-            ctx.fill();
-
-            // 目
-            ctx.fillStyle = '#000';
-            ctx.beginPath();
-            ctx.arc(-5, -12, 3, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(5, -12, 3, 0, Math.PI * 2);
             ctx.fill();
         }
 
         // ===== ゲームループ =====
         function gameLoop() {
             updatePlayer();
+            updateEnemies();
+            checkGoalCollision();
             draw();
             requestAnimationFrame(gameLoop);
         }
 
         gameLoop();
 
-        // ===== ウィンドウリサイズ時の対応 =====
+        // ===== リサイズ対応 =====
         window.addEventListener('resize', () => {
             GROUND_Y = canvas.height * GROUND_Y_RATIO;
-            // プレイヤーが画面外に行かないように
             if (player.y + player.height > canvas.height) {
                 player.y = canvas.height - player.height;
             }
