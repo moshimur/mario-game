@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Super Mario Web Game - Phase 2</title>
+    <title>Super Mario Web Game</title>
     <style>
         * {
             margin: 0;
@@ -18,47 +18,107 @@
             min-height: 100vh;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             font-family: Arial, sans-serif;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .game-wrapper {
+            width: 56.25vh;
+            height: 100vh;
+            max-width: 100vw;
+            aspect-ratio: 9 / 16;
+            position: relative;
+            background: linear-gradient(to bottom, #87CEEB 0%, #90EE90 100%);
+            border: 4px solid #333;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
         }
 
         .game-container {
             width: 100%;
-            max-width: 100vw;
-            aspect-ratio: 9 / 16;
-            background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 100%);
-            border: 4px solid #333;
+            height: 100%;
             position: relative;
-            overflow: hidden;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
         }
 
         canvas {
             display: block;
             width: 100%;
-            height: 100%;
+            flex: 1;
         }
 
-        .controls {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            color: #333;
-            font-size: 12px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 12px;
+        .game-controls {
+            width: 100%;
+            height: 100px;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 10px;
+            gap: 10px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            border: none;
             border-radius: 8px;
-            z-index: 10;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-            max-width: 150px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.1s;
+            user-select: none;
+            -webkit-user-select: none;
+            background: #667eea;
+            color: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
         }
 
-        .controls p {
-            margin: 4px 0;
-            line-height: 1.4;
+        .control-btn:active {
+            transform: scale(0.95);
+            background: #764ba2;
         }
 
-        .controls strong {
-            color: #667eea;
+        .jump-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            font-size: 24px;
+            background: #FF6347;
+        }
+
+        .jump-btn:active {
+            background: #FF4500;
+        }
+
+        .controls-info {
+            position: absolute;
+            bottom: 120px;
+            left: 15px;
+            color: #333;
             font-size: 11px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 6px;
+            z-index: 10;
+            max-width: 130px;
+        }
+
+        .controls-info p {
+            margin: 3px 0;
+            line-height: 1.3;
+        }
+
+        .controls-info strong {
+            color: #667eea;
+            font-size: 10px;
         }
 
         .status {
@@ -92,7 +152,7 @@
             text-align: center;
             z-index: 100;
             display: none;
-            min-width: 250px;
+            min-width: 220px;
         }
 
         .modal.show {
@@ -105,7 +165,7 @@
         }
 
         .modal p {
-            font-size: 16px;
+            font-size: 15px;
             margin: 8px 0;
         }
 
@@ -126,20 +186,43 @@
         }
 
         @media (max-width: 600px) {
-            .controls {
-                font-size: 11px;
-                padding: 10px;
-                bottom: 10px;
+            .game-wrapper {
+                width: 100vw;
+                height: auto;
+                aspect-ratio: 9 / 16;
+            }
+
+            .control-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
+            }
+
+            .jump-btn {
+                width: 55px;
+                height: 55px;
+                font-size: 22px;
+            }
+
+            .game-controls {
+                height: 90px;
+                padding: 8px;
+                gap: 8px;
+            }
+
+            .controls-info {
+                font-size: 10px;
+                padding: 8px;
+                bottom: 110px;
                 left: 10px;
-                max-width: 140px;
+                max-width: 120px;
             }
 
             .status {
                 font-size: 12px;
+                padding: 10px 12px;
                 top: 10px;
                 right: 10px;
-                padding: 10px 12px;
-                min-width: 90px;
             }
 
             .modal h1 {
@@ -147,28 +230,40 @@
             }
 
             .modal p {
-                font-size: 14px;
+                font-size: 13px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="game-container">
-        <canvas id="gameCanvas"></canvas>
-        <div class="controls">
-            <p><strong>操作:</strong></p>
-            <p>← → / A D : 移動</p>
-            <p>SPACE : ジャンプ</p>
-            <p><strong>敵を踏んで倒す!</strong></p>
-        </div>
-        <div class="status">
-            <p>敵: <span id="enemyCount">10</span></p>
-            <p>スコア: <span id="score">0</span></p>
-        </div>
-        <div id="gameModal" class="modal">
-            <h1 id="modalTitle">GAME OVER</h1>
-            <p id="modalMessage"></p>
-            <button onclick="location.reload()">もう一度プレイ</button>
+    <div class="game-wrapper">
+        <div class="game-container">
+            <canvas id="gameCanvas"></canvas>
+
+            <div class="controls-info">
+                <p><strong>PC操作:</strong></p>
+                <p>← → / A D : 移動</p>
+                <p>SPACE : ジャンプ</p>
+            </div>
+
+            <div class="status">
+                <p>敵: <span id="enemyCount">10</span></p>
+                <p>スコア: <span id="score">0</span></p>
+            </div>
+
+            <div id="gameModal" class="modal">
+                <h1 id="modalTitle">GAME OVER</h1>
+                <p id="modalMessage"></p>
+                <button onclick="location.reload()">もう一度プレイ</button>
+            </div>
+
+            <div class="game-controls">
+                <div class="button-group">
+                    <button class="control-btn" id="leftBtn">←</button>
+                    <button class="control-btn" id="rightBtn">→</button>
+                </div>
+                <button class="control-btn jump-btn" id="jumpBtn">JUMP</button>
+            </div>
         </div>
     </div>
 
@@ -185,17 +280,16 @@
         const ctx = canvas.getContext('2d');
 
         function resizeCanvas() {
-            const container = canvas.parentElement;
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
+            const wrapper = canvas.parentElement.parentElement;
+            canvas.width = wrapper.clientWidth;
+            canvas.height = wrapper.clientHeight - 100; // コントロールバーの高さを考慮
         }
         resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
 
         let GROUND_Y = canvas.height * GROUND_Y_RATIO;
 
         // ===== ゲーム状態 =====
-        let gameState = 'playing'; // 'playing', 'gameover', 'clear'
+        let gameState = 'playing';
         let score = 0;
 
         // ===== プレイヤーオブジェクト =====
@@ -225,23 +319,17 @@
 
         const enemyImage = new Image();
         enemyImage.src = './アイコンみーこ256256.png';
-        enemyImage.onload = () => {
-            console.log('敵画像読み込み完了');
-        };
-        enemyImage.onerror = () => {
-            console.log('敵画像読み込み失敗');
-        };
 
-        // ===== プラットフォームデータ（下から上へ段々上昇） =====
+        // ===== プラットフォームデータ =====
         const platforms = [
-            { x: 0, y: GROUND_Y + 50, width: canvas.width, height: 30 }, // 地面
+            { x: 0, y: GROUND_Y + 50, width: canvas.width, height: 30 },
             { x: 30, y: canvas.height * 0.75, width: canvas.width - 60, height: 25 },
             { x: 30, y: canvas.height * 0.68, width: canvas.width - 60, height: 25 },
             { x: 30, y: canvas.height * 0.58, width: canvas.width - 60, height: 25 },
             { x: 30, y: canvas.height * 0.48, width: canvas.width - 60, height: 25 },
             { x: 30, y: canvas.height * 0.38, width: canvas.width - 60, height: 25 },
             { x: 30, y: canvas.height * 0.28, width: canvas.width - 60, height: 25 },
-            { x: 30, y: canvas.height * 0.18, width: canvas.width - 60, height: 25 }  // ゴール手前
+            { x: 30, y: canvas.height * 0.18, width: canvas.width - 60, height: 25 }
         ];
 
         // ===== ゴール =====
@@ -259,7 +347,7 @@
                 this.y = y;
                 this.width = 35;
                 this.height = 40;
-                this.velocityX = 1.5; // 遅い速度
+                this.velocityX = 1.5;
                 this.minX = Math.max(0, x - 120);
                 this.maxX = Math.min(canvas.width - this.width, x + 120);
                 this.image = enemyImage;
@@ -283,15 +371,8 @@
                     }
 
                     if (enemyImage.complete && enemyImage.naturalHeight !== 0) {
-                        ctx.drawImage(
-                            enemyImage,
-                            -this.width / 2,
-                            0,
-                            this.width,
-                            this.height
-                        );
+                        ctx.drawImage(enemyImage, -this.width / 2, 0, this.width, this.height);
                     } else {
-                        // フォールバック
                         ctx.fillStyle = '#FF6347';
                         ctx.fillRect(-this.width / 2, 0, this.width, this.height);
                     }
@@ -299,24 +380,18 @@
                     ctx.restore();
                 }
             }
-
-            isAlive() {
-                return this.alive;
-            }
         }
 
         // ===== 敵を配置 =====
         const enemies = [];
         function initializeEnemies() {
             enemies.length = 0;
-            // 各プラットフォーム（地面以外）に敵を配置
             for (let i = 1; i < platforms.length; i++) {
                 const platform = platforms[i];
                 const enemyX = platform.x + platform.width / 2 - 17.5;
                 const enemyY = platform.y - 45;
                 enemies.push(new Enemy(enemyX, enemyY));
             }
-            // 残りの敵をランダムに配置
             while (enemies.length < 10) {
                 const randIndex = Math.floor(Math.random() * (platforms.length - 1)) + 1;
                 const platform = platforms[randIndex];
@@ -349,22 +424,43 @@
             if (e.key === ' ') keys.jump = false;
         });
 
-        // ===== タッチ操作 =====
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (e.touches[0].clientX < canvas.width / 2) {
-                keys.left = true;
-                keys.right = false;
-            } else {
-                keys.left = false;
-                keys.right = true;
-            }
-        }, { passive: false });
+        // ===== モバイルコントロール =====
+        const leftBtn = document.getElementById('leftBtn');
+        const rightBtn = document.getElementById('rightBtn');
+        const jumpBtn = document.getElementById('jumpBtn');
 
-        canvas.addEventListener('touchend', () => {
+        leftBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            keys.left = true;
+        });
+        leftBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
             keys.left = false;
+        });
+        leftBtn.addEventListener('mousedown', () => keys.left = true);
+        leftBtn.addEventListener('mouseup', () => keys.left = false);
+
+        rightBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            keys.right = true;
+        });
+        rightBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
             keys.right = false;
         });
+        rightBtn.addEventListener('mousedown', () => keys.right = true);
+        rightBtn.addEventListener('mouseup', () => keys.right = false);
+
+        jumpBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            keys.jump = true;
+        });
+        jumpBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            keys.jump = false;
+        });
+        jumpBtn.addEventListener('mousedown', () => keys.jump = true);
+        jumpBtn.addEventListener('mouseup', () => keys.jump = false);
 
         // ===== Web Audio API =====
         let audioContext = null;
@@ -389,9 +485,7 @@
                 gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
                 osc.start(now);
                 osc.stop(now + 0.1);
-            } catch (e) {
-                console.log('音声再生エラー');
-            }
+            } catch (e) {}
         }
 
         function playEnemyDefeatedSound() {
@@ -404,13 +498,11 @@
                 gain.connect(audioContext.destination);
                 osc.frequency.setValueAtTime(1200, now);
                 osc.frequency.exponentialRampToValueAtTime(600, now + 0.15);
-                gain.gain.setValueAtValue(0.2, now);
+                gain.gain.setValueAtTime(0.2, now);
                 gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
                 osc.start(now);
                 osc.stop(now + 0.15);
-            } catch (e) {
-                console.log('音声再生エラー');
-            }
+            } catch (e) {}
         }
 
         // ===== 当たり判定 =====
@@ -437,7 +529,6 @@
         function updatePlayer() {
             if (gameState !== 'playing') return;
 
-            // 水平移動
             if (keys.left) {
                 player.velocityX = -MOVE_SPEED;
                 player.direction = -1;
@@ -448,7 +539,6 @@
                 player.velocityX = 0;
             }
 
-            // ジャンプ
             if (keys.jump && !player.isJumping) {
                 player.velocityY = JUMP_STRENGTH;
                 player.isJumping = true;
@@ -456,24 +546,19 @@
                 keys.jump = false;
             }
 
-            // 重力
             player.velocityY += GRAVITY;
             if (player.velocityY > MAX_FALL_SPEED) {
                 player.velocityY = MAX_FALL_SPEED;
             }
 
-            // 位置更新
             player.x += player.velocityX;
             player.y += player.velocityY;
 
-            // プラットフォーム衝突判定
             checkPlatformCollision();
 
-            // 画面端判定
             if (player.x < 0) player.x = 0;
             if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
 
-            // 画面外（下）に落ちたらゲームオーバー
             if (player.y > canvas.height) {
                 gameOver('落ちちゃった！');
             }
@@ -487,30 +572,24 @@
 
                 enemy.update();
 
-                // プレイヤーと敵の当たり判定
                 if (checkCollision(player, enemy)) {
-                    // プレイヤーが敵の上から踏んだか判定
                     if (player.velocityY > 0 && player.y + player.height - 15 < enemy.y + enemy.height / 2) {
-                        // 敵を倒した
                         enemy.alive = false;
                         playEnemyDefeatedSound();
                         score += 100;
                         updateScore();
 
-                        // すべての敵を倒したかチェック
                         const aliveEnemies = enemies.filter(e => e.alive).length;
                         if (aliveEnemies === 0) {
                             clearGame();
                         }
                     }
-                    // 敵との接触はゲームオーバーにはしない
                 }
             }
         }
 
         function checkGoalCollision() {
             if (gameState !== 'playing') return;
-
             if (checkCollision(player, goal)) {
                 clearGame();
             }
@@ -524,7 +603,7 @@
         function clearGame() {
             gameState = 'clear';
             const defeatedCount = 10 - enemies.filter(e => e.alive).length;
-            showModal('CLEAR!', `ゴールに到達しました！\n敵を倒した数：${defeatedCount} / 10\nスコア：${score}`);
+            showModal('CLEAR!', `ゴールに到達！\n敵を倒した数：${defeatedCount} / 10\nスコア：${score}`);
         }
 
         function showModal(title, message) {
@@ -542,14 +621,12 @@
 
         // ===== 描画 =====
         function draw() {
-            // 背景
             const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
             gradient.addColorStop(0, '#87CEEB');
-            gradient.addColorStop(1, '#E0F6FF');
+            gradient.addColorStop(1, '#90EE90');
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // プラットフォーム描画
             ctx.fillStyle = '#8B4513';
             for (let platform of platforms) {
                 ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
@@ -558,7 +635,6 @@
                 ctx.strokeRect(platform.x, platform.y, platform.width, platform.height);
             }
 
-            // ゴール描画
             ctx.fillStyle = '#FFD700';
             ctx.fillRect(goal.x, goal.y, goal.width, goal.height);
             ctx.fillStyle = '#FFA500';
@@ -566,15 +642,12 @@
             ctx.textAlign = 'center';
             ctx.fillText('GOAL', goal.x + goal.width / 2, goal.y + goal.height / 2 + 5);
 
-            // 敵描画
             for (let enemy of enemies) {
                 enemy.draw(ctx);
             }
 
-            // プレイヤー描画
             drawPlayer();
 
-            // ゲームオーバー時のオーバーレイ
             if (gameState === 'gameover' || gameState === 'clear') {
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -591,13 +664,7 @@
 
             if (player.imageLoaded && player.image) {
                 try {
-                    ctx.drawImage(
-                        player.image,
-                        -player.width / 2,
-                        0,
-                        player.width,
-                        player.height
-                    );
+                    ctx.drawImage(player.image, -player.width / 2, 0, player.width, player.height);
                 } catch (e) {
                     drawPlayerFallback();
                 }
@@ -627,14 +694,6 @@
         }
 
         gameLoop();
-
-        // ===== リサイズ対応 =====
-        window.addEventListener('resize', () => {
-            GROUND_Y = canvas.height * GROUND_Y_RATIO;
-            if (player.y + player.height > canvas.height) {
-                player.y = canvas.height - player.height;
-            }
-        });
     </script>
 </body>
 </html>
