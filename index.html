@@ -291,6 +291,7 @@
         // ===== ゲーム状態 =====
         let gameState = 'playing';
         let score = 0;
+        let totalEnemies = 0; // 敵の総数を保持
 
         // ===== プレイヤーオブジェクト =====
         const player = {
@@ -415,6 +416,9 @@
             platform = platforms[3];
             enemies.push(new Enemy(platform.x + platform.width * 0.3, platform.y - 45));
             enemies.push(new Enemy(platform.x + platform.width * 0.7, platform.y - 45));
+            
+            // 敵の総数を保存
+            totalEnemies = enemies.length;
         }
         initializeEnemies();
 
@@ -636,13 +640,13 @@
                         player.isJumping = true;
                         
                         playEnemyDefeatedSound();
-                        score += 100;
+                        score += 20; // 敵1体につき20点
                         
-                        // +100ポイント表示を追加
+                        // +20ポイント表示を追加
                         floatingTexts.push({
                             x: enemy.x + enemy.width / 2,
                             y: enemy.y,
-                            text: '+100',
+                            text: '+20',
                             timer: 40,
                             maxTimer: 40
                         });
@@ -651,6 +655,7 @@
 
                         const aliveEnemies = enemies.filter(e => e.alive && !e.isCrushed).length;
                         if (aliveEnemies === 0) {
+                            score += 100; // 全て倒したらボーナス100点
                             clearGame();
                         }
                     } else {
