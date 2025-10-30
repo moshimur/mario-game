@@ -322,7 +322,7 @@
         const enemyImage = new Image();
         enemyImage.src = './アイコンみーこ256256.png';
 
-        // ===== プラットフォームデータ（段階的難易度上昇） =====
+        // ===== プラットフォームデータ（段階的難易度上昇 + 敵専用足場 + 敵なし足場） =====
         const platforms = [
             // 地面（最下部）
             { x: 0, y: GROUND_Y + 50, width: canvas.width, height: 30 },
@@ -339,14 +339,17 @@
             // 4段目：左側に配置（戻る必要がある）
             { x: 30, y: canvas.height * 0.40, width: canvas.width * 0.45, height: 25 },
             
-            // 5段目：ゴール手前（狭い）
-            { x: canvas.width / 2 - 70, y: canvas.height * 0.20, width: 140, height: 25 }
+            // 5段目：敵専用足場（敵3体をここに配置）
+            { x: canvas.width / 2 - 120, y: canvas.height * 0.28, width: 240, height: 25 },
+            
+            // 6段目：敵なし広い足場（ゴール前の安全地帯）
+            { x: 20, y: canvas.height * 0.14, width: canvas.width - 40, height: 25 }
         ];
 
         // ===== ゴール =====
         const goal = {
             x: canvas.width / 2 - 50,
-            y: canvas.height * 0.08,
+            y: canvas.height * 0.02,
             width: 100,
             height: 35
         };
@@ -425,11 +428,14 @@
             enemies.push(new Enemy(platform.x + 50, platform.y - 45));
             enemies.push(new Enemy(platform.x + platform.width - 85, platform.y - 45));
             
-            // 5段目（ゴール手前）：敵3体（難関区間）
+            // 5段目（敵専用足場）：敵3体（最難関区間）
             platform = platforms[5];
-            enemies.push(new Enemy(platform.x + 20, platform.y - 45));
+            enemies.push(new Enemy(platform.x + 30, platform.y - 45));
             enemies.push(new Enemy(platform.x + platform.width / 2 - 17.5, platform.y - 45));
-            enemies.push(new Enemy(platform.x + platform.width - 55, platform.y - 45));
+            enemies.push(new Enemy(platform.x + platform.width - 65, platform.y - 45));
+            
+            // 6段目：敵なし（安全地帯）
+            // 配置なし
         }
         initializeEnemies();
 
