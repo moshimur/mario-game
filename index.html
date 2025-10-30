@@ -247,7 +247,7 @@
             </div>
 
             <div class="status">
-                <p>敵: <span id="enemyCount">10</span></p>
+                <p>敵: <span id="enemyCount">0</span></p>
                 <p>スコア: <span id="score">0</span></p>
             </div>
 
@@ -282,7 +282,7 @@
         function resizeCanvas() {
             const wrapper = canvas.parentElement.parentElement;
             canvas.width = wrapper.clientWidth;
-            canvas.height = wrapper.clientHeight - 100; // コントロールバーの高さを考慮
+            canvas.height = wrapper.clientHeight - 100;
         }
         resizeCanvas();
 
@@ -303,7 +303,9 @@
             isJumping: false,
             image: null,
             imageLoaded: false,
-            direction: 1
+            direction: 1,
+            damageTimer: 0,
+            isDamaged: false
         };
 
         // ===== 画像読み込み =====
@@ -320,16 +322,25 @@
         const enemyImage = new Image();
         enemyImage.src = './アイコンみーこ256256.png';
 
-        // ===== プラットフォームデータ =====
+        // ===== プラットフォームデータ（段階的難易度上昇） =====
         const platforms = [
+            // 地面（最下部）
             { x: 0, y: GROUND_Y + 50, width: canvas.width, height: 30 },
-            { x: 30, y: canvas.height * 0.75, width: canvas.width - 60, height: 25 },
-            { x: 30, y: canvas.height * 0.68, width: canvas.width - 60, height: 25 },
-            { x: 30, y: canvas.height * 0.58, width: canvas.width - 60, height: 25 },
-            { x: 30, y: canvas.height * 0.48, width: canvas.width - 60, height: 25 },
-            { x: 30, y: canvas.height * 0.38, width: canvas.width - 60, height: 25 },
-            { x: 30, y: canvas.height * 0.28, width: canvas.width - 60, height: 25 },
-            { x: 30, y: canvas.height * 0.18, width: canvas.width - 60, height: 25 }
+            
+            // 1段目：広めで練習用
+            { x: 20, y: canvas.height * 0.72, width: canvas.width - 40, height: 25 },
+            
+            // 2段目：狭くしてギャップを作る
+            { x: 100, y: canvas.height * 0.62, width: canvas.width * 0.5, height: 25 },
+            
+            // 3段目：右側に配置（移動が必要）
+            { x: canvas.width * 0.5 + 50, y: canvas.height * 0.52, width: canvas.width * 0.4, height: 25 },
+            
+            // 4段目：左側に配置（戻る必要がある）
+            { x: 30, y: canvas.height * 0.40, width: canvas.width * 0.45, height: 25 },
+            
+            // 5段目：ゴール手前（狭い）
+            { x: canvas.width / 2 - 70, y: canvas.height * 0.20, width: 140, height: 25 }
         ];
 
         // ===== ゴール =====
@@ -352,6 +363,8 @@
                 this.maxX = Math.min(canvas.width - this.width, x + 120);
                 this.image = enemyImage;
                 this.alive = true;
+                this.crushTimer = 0;
+                this.isCrushed = false;
             }
 
             update() {
@@ -370,6 +383,13 @@
                         ctx.scale(-1, 1);
                     }
 
+                    // 潰れるアニメーション
+                    if (this.isCrushed) {
+                        const crushRatio = 1 - (this.crushTimer / 15); // 15フレームで復帰
+                        ctx.scale(1, crushRatio * 0.3 + 0.7); // 70%～100%の高さ
+                        ctx.globalAlpha = 0.5; // 半透明にする
+                    }
+
                     if (enemyImage.complete && enemyImage.naturalHeight !== 0) {
                         ctx.drawImage(enemyImage, -this.width / 2, 0, this.width, this.height);
                     } else {
@@ -382,23 +402,34 @@
             }
         }
 
-        // ===== 敵を配置 =====
+        // ===== 敵を配置（8体、配置パターンを工夫） =====
         const enemies = [];
+        const floatingTexts = [];
         function initializeEnemies() {
             enemies.length = 0;
-            for (let i = 1; i < platforms.length; i++) {
-                const platform = platforms[i];
-                const enemyX = platform.x + platform.width / 2 - 17.5;
-                const enemyY = platform.y - 45;
-                enemies.push(new Enemy(enemyX, enemyY));
-            }
-            while (enemies.length < 10) {
-                const randIndex = Math.floor(Math.random() * (platforms.length - 1)) + 1;
-                const platform = platforms[randIndex];
-                const enemyX = platform.x + Math.random() * (platform.width - 35);
-                const enemyY = platform.y - 45;
-                enemies.push(new Enemy(enemyX, enemyY));
-            }
+            
+            // 1段目：敵なし（練習用）
+            // 配置なし
+            
+            // 2段目：敵1体（中央）
+            let platform = platforms[2];
+            enemies.push(new Enemy(platform.x + platform.width / 2 - 17.5, platform.y - 45));
+            
+            // 3段目：敵2体（左右）
+            platform = platforms[3];
+            enemies.push(new Enemy(platform.x + 30, platform.y - 45));
+            enemies.push(new Enemy(platform.x + platform.width - 65, platform.y - 45));
+            
+            // 4段目：敵2体（配置）
+            platform = platforms[4];
+            enemies.push(new Enemy(platform.x + 50, platform.y - 45));
+            enemies.push(new Enemy(platform.x + platform.width - 85, platform.y - 45));
+            
+            // 5段目（ゴール手前）：敵3体（難関区間）
+            platform = platforms[5];
+            enemies.push(new Enemy(platform.x + 20, platform.y - 45));
+            enemies.push(new Enemy(platform.x + platform.width / 2 - 17.5, platform.y - 45));
+            enemies.push(new Enemy(platform.x + platform.width - 55, platform.y - 45));
         }
         initializeEnemies();
 
@@ -505,6 +536,23 @@
             } catch (e) {}
         }
 
+        function playDamageSound() {
+            initAudioContext();
+            try {
+                const now = audioContext.currentTime;
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.linearRampToValueAtTime(400, now + 0.1);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } catch (e) {}
+        }
+
         // ===== 当たり判定 =====
         function checkCollision(rect1, rect2) {
             return rect1.x < rect2.x + rect2.width &&
@@ -562,6 +610,14 @@
             if (player.y > canvas.height) {
                 gameOver('落ちちゃった！');
             }
+
+            // ダメージタイマーの更新
+            if (player.isDamaged) {
+                player.damageTimer--;
+                if (player.damageTimer <= 0) {
+                    player.isDamaged = false;
+                }
+            }
         }
 
         function updateEnemies() {
@@ -570,20 +626,65 @@
             for (let enemy of enemies) {
                 if (!enemy.alive) continue;
 
+                // 潰れ中なら更新
+                if (enemy.isCrushed) {
+                    enemy.crushTimer--;
+                    if (enemy.crushTimer <= 0) {
+                        enemy.alive = false;
+                        enemy.isCrushed = false;
+                    }
+                    continue; // 潰れ中は移動しない
+                }
+
                 enemy.update();
 
+                // プレイヤーと敵の当たり判定
                 if (checkCollision(player, enemy)) {
+                    // プレイヤーが敵の上から踏んだか判定
                     if (player.velocityY > 0 && player.y + player.height - 15 < enemy.y + enemy.height / 2) {
-                        enemy.alive = false;
+                        // 敵を踏み潰した！
+                        enemy.isCrushed = true;
+                        enemy.crushTimer = 15; // 15フレーム表示
+                        
+                        // プレイヤーがバウンス
+                        player.velocityY = JUMP_STRENGTH * 0.7; // ジャンプの70%の力で跳ねる
+                        player.isJumping = true;
+                        
                         playEnemyDefeatedSound();
                         score += 100;
+                        
+                        // +100ポイント表示を追加
+                        floatingTexts.push({
+                            x: enemy.x + enemy.width / 2,
+                            y: enemy.y,
+                            text: '+100',
+                            timer: 40,
+                            maxTimer: 40
+                        });
+                        
                         updateScore();
 
-                        const aliveEnemies = enemies.filter(e => e.alive).length;
+                        const aliveEnemies = enemies.filter(e => e.alive && !e.isCrushed).length;
                         if (aliveEnemies === 0) {
                             clearGame();
                         }
+                    } else {
+                        // 敵に接触したらダメージ（一瞬小さくなる）
+                        if (!player.isDamaged) {
+                            player.isDamaged = true;
+                            player.damageTimer = 20;
+                            playDamageSound();
+                        }
                     }
+                }
+            }
+
+            // フローティングテキストの更新
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                floatingTexts[i].timer--;
+                floatingTexts[i].y -= 2; // 上に移動
+                if (floatingTexts[i].timer <= 0) {
+                    floatingTexts.splice(i, 1);
                 }
             }
         }
@@ -602,8 +703,9 @@
 
         function clearGame() {
             gameState = 'clear';
-            const defeatedCount = 10 - enemies.filter(e => e.alive).length;
-            showModal('CLEAR!', `ゴールに到達！\n敵を倒した数：${defeatedCount} / 10\nスコア：${score}`);
+            const totalEnemies = getTotalEnemyCount();
+            const defeatedCount = totalEnemies - enemies.filter(e => e.alive || e.isCrushed).length;
+            showModal('CLEAR!', `ゴールに到達！\n敵を倒した数：${defeatedCount} / ${totalEnemies}\nスコア：${score}`);
         }
 
         function showModal(title, message) {
@@ -615,8 +717,12 @@
 
         function updateScore() {
             document.getElementById('score').textContent = score;
-            const aliveCount = enemies.filter(e => e.alive).length;
+            const aliveCount = enemies.filter(e => e.alive && !e.isCrushed).length;
             document.getElementById('enemyCount').textContent = aliveCount;
+        }
+
+        function getTotalEnemyCount() {
+            return enemies.length;
         }
 
         // ===== 描画 =====
@@ -648,6 +754,17 @@
 
             drawPlayer();
 
+            // フローティングテキスト（+100ポイント）の描画
+            for (let text of floatingTexts) {
+                ctx.save();
+                ctx.globalAlpha = text.timer / text.maxTimer; // フェードアウト
+                ctx.fillStyle = '#FFD700';
+                ctx.font = 'bold 18px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(text.text, text.x, text.y);
+                ctx.restore();
+            }
+
             if (gameState === 'gameover' || gameState === 'clear') {
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -660,6 +777,11 @@
 
             if (player.direction === -1) {
                 ctx.scale(-1, 1);
+            }
+
+            // ダメージ状態の時は小さくなる
+            if (player.isDamaged) {
+                ctx.scale(0.6, 0.6);
             }
 
             if (player.imageLoaded && player.image) {
@@ -693,6 +815,8 @@
             requestAnimationFrame(gameLoop);
         }
 
+        // ゲーム開始時に敵カウントを初期化
+        updateScore();
         gameLoop();
     </script>
 </body>
