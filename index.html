@@ -655,7 +655,7 @@
 
                         const aliveEnemies = enemies.filter(e => e.alive && !e.isCrushed).length;
                         if (aliveEnemies === 0) {
-                            score += 100; // 全て倒したらボーナス100点
+                            // ボーナスなし（敵1体20点 × 5体 = 100点）
                             clearGame();
                         }
                     } else {
